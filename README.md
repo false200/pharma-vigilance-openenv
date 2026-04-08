@@ -1,11 +1,13 @@
 ---
 title: Pharmacovigilance Signal Detector
-emoji: "💊"
+emoji: "??"
 colorFrom: blue
 colorTo: green
 sdk: docker
 app_port: 7860
 pinned: false
+license: mit
+short_description: OpenEnv pharmacovigilance signal detection environment
 tags:
   - openenv
   - healthcare
@@ -79,11 +81,11 @@ Each `AdverseEventReport` contains:
 
 | Task | Difficulty | Scenario | Ground-truth goal | Expected baseline |
 |---|---|---|---|---|
-| `known_signal_easy` | Easy | Older patient on high-dose Ibuprofen with GI bleeding and hundreds of similar recent cases | Recognize a known side effect and recommend `log_and_monitor` | Around `0.85` |
-| `cluster_signal_medium` | Medium | Four recent vision-loss or visual-disturbance cases clustered around newly approved `Gliptozin` | Recognize a plausible emerging signal and `escalate` | Around `0.65` |
-| `confounded_hard` | Hard | Polypharmacy case where the reporter blames `Omeprazole`, but the real concern is a `Clarithromycin`-`Atorvastatin` interaction causing hepatotoxicity | Detect the drug interaction, classify as `new_signal`, and `escalate` | Around `0.40` |
+| `known_signal_easy` | Easy | Patient on `Lisinopril` develops persistent dry cough with many similar recent reports already known in-label | Recognize a known side effect and recommend `log_and_monitor` | Around `0.85` |
+| `cluster_signal_medium` | Medium | Four recent `Cardiovexa` cases show symptomatic bradycardia and near-syncope despite no labeled rhythm toxicity | Recognize a plausible emerging signal and `escalate` | Around `0.65` |
+| `confounded_hard` | Hard | Transplant patient with acute kidney injury is blamed on `Trimethoprim-sulfamethoxazole`, but the deeper issue is a `Voriconazole`-`Tacrolimus` interaction | Detect the interaction, classify as `new_signal`, and `escalate` | Around `0.40` |
 
-The hard task is intentionally more difficult because the named suspect drug is not the true cause. The agent must reason over interaction evidence in the provided hardcoded drug database.
+The hard task is intentionally more difficult because the named suspect drug is not the true cause. The agent must reason over interaction evidence and therapeutic drug-monitoring clues in the provided hardcoded drug database.
 
 ## Reward Function
 
@@ -97,7 +99,7 @@ The environment uses deterministic programmatic graders.
 | Correct `recommended_action` | `+0.25` |
 | False alarm penalty: agent says `new_signal` when truth is `noise` | `-0.10` |
 | Missed signal penalty: agent says `noise` when truth is `new_signal` | `-0.20` |
-| Hard-task reasoning bonus if explanation mentions `CYP3A4`, `drug interaction`, `statin`, `atorvastatin`, or `clarithromycin` | `+0.15` |
+| Hard-task reasoning bonus if explanation mentions `drug interaction`, `tacrolimus`, `voriconazole`, `azole`, `calcineurin`, or `level monitoring` | `+0.15` |
 
 Notes:
 - Final reward is clamped to `[0.0, 1.0]`.
@@ -108,16 +110,16 @@ Notes:
 
 | Path | Purpose |
 |---|---|
-| [env.py](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/env.py) | Main environment class and Pydantic models |
-| [tasks.py](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/tasks.py) | Task definitions and grader functions |
-| [data.py](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/data.py) | Synthetic reports and drug interaction database |
-| [server.py](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/server.py) | Root FastAPI entrypoint |
-| [server/app.py](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/server/app.py) | OpenEnv-compatible app entrypoint |
-| [inference.py](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/inference.py) | Baseline inference runner |
-| [openenv.yaml](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/openenv.yaml) | OpenEnv metadata |
-| [Dockerfile](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/Dockerfile) | Multi-stage OpenEnv-style container build |
-| [tests/test_env.py](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/tests/test_env.py) | Local tests |
-| [validate-submission.sh](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/validate-submission.sh) | Pre-submission validation helper |
+| `env.py` | Main environment class and Pydantic models |
+| `tasks.py` | Task definitions and grader functions |
+| `data.py` | Synthetic reports and drug interaction database |
+| `server.py` | Root FastAPI entrypoint |
+| `server/app.py` | OpenEnv-compatible app entrypoint |
+| `inference.py` | Baseline inference runner |
+| `openenv.yaml` | OpenEnv metadata |
+| `Dockerfile` | Multi-stage OpenEnv-style container build |
+| `tests/test_env.py` | Local tests |
+| `validate-submission.sh` | Pre-submission validation helper |
 
 ## Running Locally
 
@@ -173,7 +175,7 @@ http://localhost:7860/health
 
 ## Baseline Inference Script
 
-The required baseline runner is [inference.py](/c:/Users/Admin/Desktop/Autorebot-main/Autorebot-main/inference.py).
+The required baseline runner is `inference.py`.
 
 It:
 - reads `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`, and optional `ENV_URL`
