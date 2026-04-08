@@ -68,6 +68,6 @@ EXPOSE 7860
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:7860/health || exit 1
 
-# Run the FastAPI server
-# The module path is constructed to work with this repo's package layout.
-CMD ["sh", "-c", "cd /app/env && uvicorn server.app:app --host 0.0.0.0 --port 7860"]
+# Run the FastAPI server using the virtualenv interpreter explicitly so the
+# installed openenv-core package is available at runtime.
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
