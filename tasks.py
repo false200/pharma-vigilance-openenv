@@ -57,7 +57,10 @@ def _base_breakdown(action: Any, ground_truth: GroundTruth) -> dict:
 
 
 def _reward_from_breakdown(breakdown: dict):
-    from env import Reward
+    try:
+        from .env import Reward
+    except ImportError:
+        from env import Reward
 
     total = round(sum(breakdown.values()), 4)
     return Reward(total=max(0.0, min(1.0, total)), breakdown=breakdown)
@@ -130,7 +133,10 @@ def _task_definition(
     description: str,
     action_grader: Callable[[Any], Any],
 ) -> TaskDefinition:
-    from env import AdverseEventReport
+    try:
+        from .env import AdverseEventReport
+    except ImportError:
+        from env import AdverseEventReport
 
     task_data = TASK_DATA[task_id]
     return TaskDefinition(
