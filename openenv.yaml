@@ -1,30 +1,113 @@
 spec_version: 1
-name: pharma-vigilance
+name: pharma_vigilance_env
 display_name: "Pharmacovigilance Signal Detector"
 description: >
-  Pharmacovigilance signal detection environment. Agent reads drug adverse
-  event reports and classifies them as new safety signals, known side effects,
-  or noise - simulating the work of FDA pharmacovigilance analysts.
+  A real-world OpenEnv environment where an AI agent acts as a pharmacovigilance
+  analyst. The agent reviews synthetic adverse-event cases, decides whether they
+  represent known labeled effects, emerging safety signals, or low-value noise,
+  and recommends the correct operational follow-up. Tasks cover known class
+  effects, clustered post-marketing signal detection, and confounded
+  drug-drug-interaction cases that require causal reasoning rather than surface
+  blame assignment.
 type: space
 runtime: fastapi
 app: server.app:app
 port: 7860
-tags: [openenv, healthcare, pharmacovigilance, safety, real-world]
+tags:
+  - openenv
+  - healthcare
+  - pharmacovigilance
+  - drug-safety
+  - reinforcement-learning
+
+action_space:
+  type: structured
+  fields:
+    - name: classification
+      type: string
+      values: [new_signal, known_side_effect, noise, duplicate]
+      description: "Top-level safety classification chosen by the agent"
+    - name: suspect_drug
+      type: string
+      description: "Drug or drug interaction the agent believes is causally responsible"
+    - name: severity_assessment
+      type: string
+      values: [mild, moderate, severe, critical]
+      description: "Agent-assigned clinical severity for the case"
+    - name: recommended_action
+      type: string
+      values: [escalate, log_and_monitor, dismiss, request_more_info]
+      description: "Operational pharmacovigilance follow-up decision"
+    - name: reasoning
+      type: string
+      description: "Brief free-text rationale used for partial credit on the hard task"
+
+observation_space:
+  type: structured
+  fields:
+    - name: task_id
+      type: string
+      description: "Identifier of the current pharmacovigilance task"
+    - name: reports
+      type: array
+      description: "One or more synthetic adverse-event reports included in the case"
+    - name: drug_interaction_db
+      type: object
+      description: "Hardcoded safety and interaction reference data visible to the agent"
+    - name: step_number
+      type: integer
+      description: "Current step index within the episode"
+    - name: max_steps
+      type: integer
+      description: "Maximum number of steps allowed in the episode"
+    - name: feedback
+      type: string
+      required: false
+      description: "Human-readable feedback from the previous action"
+
+reward:
+  min: 0.0
+  max: 1.0
+  description: >
+    Reward is built from four 0.25 components for classification correctness,
+    causal suspect selection, severity assessment, and recommended operational
+    action. A false alarm penalty of -0.10 applies when the agent escalates a
+    case that is truly noise, and a larger missed-signal penalty of -0.20
+    applies when the agent dismisses a true new signal. The hard task can earn
+    an additional +0.15 reasoning bonus when the explanation explicitly
+    references the interaction mechanism or therapeutic drug monitoring clues.
+
+difficulties:
+  - easy
+  - medium
+  - hard
+
+max_steps: 1
 
 tasks:
   - id: known_signal_easy
     difficulty: easy
-    max_steps: 1
-    grader: tasks.known_signal_easy_grader
+    description: >
+      Review a synthetic single-patient report in which an ACE inhibitor is
+      followed by persistent dry cough and many similar recent cases already
+      exist. The correct behavior is to recognize this as a known labeled effect
+      and recommend routine logging and monitoring rather than escalation.
+    grader: graders.known_signal_easy_grader
+
   - id: cluster_signal_medium
     difficulty: medium
-    max_steps: 1
-    grader: tasks.cluster_signal_medium_grader
+    description: >
+      Review a clustered set of recent post-marketing reports tied to a newly
+      launched cardiovascular therapy. The reports show symptomatic bradycardia
+      and near-syncope despite the label lacking rhythm-related warnings. The
+      agent should detect an emerging signal and escalate.
+    grader: graders.cluster_signal_medium_grader
+
   - id: confounded_hard
     difficulty: hard
-    max_steps: 1
-    grader: tasks.confounded_hard_grader
-
-observation_space: AdverseEventReport list + drug interaction DB
-action_space: classification + suspect_drug + severity + recommended_action + reasoning
-reward_range: [0.0, 1.0]
+    description: >
+      Review a confounded transplant-medicine case in which the reporter blames
+      the wrong drug. The correct judgment requires identifying a tacrolimus and
+      voriconazole interaction, recognizing acute kidney injury risk from toxic
+      exposure, and escalating the case as a clinically serious new signal.
+    grader: graders.confounded_hard_grader

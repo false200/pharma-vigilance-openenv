@@ -68,7 +68,7 @@ class PharmaVigilanceEnv:
         if self.current_task is None:
             raise RuntimeError("Call reset() before step().")
 
-        reward = self.current_task.grader(action)
+        reward = self.current_task.action_grader(action)
         self.step_number += 1
         self.last_action = action.model_dump()
         self.last_reward = reward.model_dump()
