@@ -72,7 +72,7 @@ def emit_end(success: bool, steps: int, score: float, rewards: List[float]) -> N
     reward_text = ",".join(f"{reward:.2f}" for reward in rewards)
     print(
         f"[END] success={str(success).lower()} steps={steps} "
-        f"score={score:.2f} rewards={reward_text}",
+        f"score={score:.6f} rewards={reward_text}",
         flush=True,
     )
 
@@ -143,10 +143,8 @@ def compact_action(action: PharmaAction) -> str:
 
 
 def final_score(rewards: List[float]) -> float:
-    if not rewards:
-        return 0.0
-    score = sum(rewards) / len(rewards)
-    return min(max(round(score, 4), 0.0), 1.0)
+    score = sum(rewards) / len(rewards) if rewards else 0.0
+    return max(1e-6, min(score, 1 - 1e-6))
 
 
 def run_one_task(llm: OpenAI, task_name: str) -> None:
