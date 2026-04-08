@@ -41,8 +41,7 @@ RUN if ! command -v uv >/dev/null 2>&1; then \
 # Install dependencies into a local virtualenv using the repo requirements file.
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv venv .venv && \
-    . .venv/bin/activate && \
-    uv pip install -r requirements.txt
+    uv pip install --python .venv/bin/python -r requirements.txt
 
 # Final runtime stage
 FROM ${BASE_IMAGE}
