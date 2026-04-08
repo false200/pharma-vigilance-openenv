@@ -8,10 +8,12 @@
 
 try:
     from .client import PharmaVigilanceEnvClient
-    from .env import PharmaVigilanceEnv
+    from .env import AdverseEventReport, Reward, PharmaVigilanceEnv
     from .models import PharmaAction, PharmaObservation, PharmaReward
 except ImportError:
     PharmaVigilanceEnvClient = None
+    from env import AdverseEventReport
+    from env import Reward
     from env import Action as PharmaAction
     from env import PharmaVigilanceEnv
     from env import Observation as PharmaObservation
@@ -22,5 +24,7 @@ __all__ = [
     "PharmaAction",
     "PharmaObservation",
     "PharmaReward",
+    "Reward",
+    "AdverseEventReport",
     "PharmaVigilanceEnv",
 ]
