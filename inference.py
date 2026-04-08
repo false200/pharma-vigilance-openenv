@@ -144,7 +144,7 @@ def compact_action(action: PharmaAction) -> str:
 
 def final_score(rewards: List[float]) -> float:
     score = sum(rewards) / len(rewards) if rewards else 0.0
-    return max(1e-6, min(score, 1 - 1e-6))
+    return min(max(round(score, 4), 0.01), 0.99)
 
 
 def run_one_task(llm: OpenAI, task_name: str) -> None:
