@@ -1,43 +1,81 @@
 from fastapi import FastAPI
+from openenv.core.env_server import create_web_interface_app
 
-from env import Action, PharmaVigilanceEnv
-
-
-app = FastAPI()
-env = PharmaVigilanceEnv()
+from env import PharmaVigilanceEnv
+from models import PharmaAction, PharmaObservation
 
 
-@app.post("/reset")
-def reset(body: dict = {}):
-    task_id = body.get("task_id", "known_signal_easy")
-    obs = env.reset(task_id)
-    return obs.model_dump()
+TASK_IDS = ["known_signal_easy", "cluster_signal_medium", "confounded_hard"]
 
 
-@app.post("/step")
-def step(action: Action):
-    obs, reward, done, info = env.step(action)
-    return {
-        "observation": obs.model_dump(),
-        "reward": reward.model_dump(),
-        "done": done,
-        "info": info,
-    }
+class OpenEnvPharmaAdapter:
+    """
+    Thin adapter that exposes the local environment through the interface
+    expected by OpenEnv's HTTP server and web playground helpers.
+    """
+
+    def __init__(self) -> None:
+        self._env = PharmaVigilanceEnv()
+        self._last_state: dict = {
+            "episode_id": None,
+            "step_count": 0,
+        }
+
+    def reset(self, task_id: str = "known_signal_easy") -> PharmaObservation:
+        observation = self._env.reset(task_id=task_id)
+        self._last_state = {
+            "episode_id": task_id,
+            "step_count": 0,
+        }
+        return PharmaObservation(
+            task_id=observation.task_id,
+            reports=observation.reports,
+            drug_interaction_db=observation.drug_interaction_db,
+            step_number=observation.step_number,
+            max_steps=observation.max_steps,
+            feedback=observation.feedback,
+            reward=0.0,
+            done=False,
+            metadata={"difficulty": self._env.current_task.difficulty if self._env.current_task else None},
+        )
+
+    def step(self, action: PharmaAction) -> PharmaObservation:
+        observation, reward, done, info = self._env.step(action)
+        self._last_state = {
+            "episode_id": observation.task_id,
+            "step_count": observation.step_number,
+        }
+        return PharmaObservation(
+            task_id=observation.task_id,
+            reports=observation.reports,
+            drug_interaction_db=observation.drug_interaction_db,
+            step_number=observation.step_number,
+            max_steps=observation.max_steps,
+            feedback=observation.feedback,
+            reward=reward.total,
+            done=done,
+            metadata=info,
+        )
+
+    @property
+    def state(self) -> dict:
+        return self._last_state
+
+    def close(self) -> None:
+        return None
 
 
-@app.get("/state")
-def state():
-    return env.state()
+app: FastAPI = create_web_interface_app(
+    OpenEnvPharmaAdapter,
+    PharmaAction,
+    PharmaObservation,
+    env_name="pharma_vigilance_env",
+)
 
 
 @app.get("/tasks")
 def list_tasks():
-    return {"tasks": ["known_signal_easy", "cluster_signal_medium", "confounded_hard"]}
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+    return {"tasks": TASK_IDS}
 
 
 def main(host: str = "0.0.0.0", port: int = 7860) -> None:
