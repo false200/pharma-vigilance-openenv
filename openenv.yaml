@@ -70,7 +70,7 @@ observation_space:
       description: "Human-readable feedback from the previous action"
 
 reward:
-  min: 0.0
+  min: -0.25
   max: 1.0
   description: >
     Reward is computed over a staged pharmacovigilance decision pipeline:
@@ -83,7 +83,9 @@ reward:
     penalty of -0.20 applies when the agent dismisses a true new signal. The
     hard task can earn an additional +0.05 reasoning bonus when the
     explanation explicitly references the interaction mechanism or therapeutic
-    drug monitoring clues.
+    drug monitoring clues. Step-level rewards may dip slightly below zero for
+    clearly unsafe or suboptimal behavior, while final grader scores remain
+    deterministic and normalized for evaluation.
 
 difficulties:
   - easy

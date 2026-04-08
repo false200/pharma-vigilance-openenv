@@ -179,6 +179,39 @@ def test_final_step_applies_stubborn_penalty_for_repeating_weak_answer():
     assert reward.breakdown["stubborn_penalty"] == -0.05
 
 
+def test_initial_step_can_return_negative_reward_for_unsafe_triage():
+    env = PharmaVigilanceEnv()
+    env.reset("cluster_signal_medium")
+
+    _, reward, done, info = env.step(
+        Action(
+            classification="noise",
+            suspect_drug="Unknown",
+            severity_assessment="mild",
+            recommended_action="dismiss",
+            reasoning="No obvious concern.",
+            confidence=95,
+        )
+    )
+    assert done is False
+    assert info["phase"] == "initial_triage"
+    assert reward.total < 0.0
+
+
+def test_single_step_action_grader_can_return_negative_total():
+    reward = cluster_signal_medium_action_grader(
+        Action(
+            classification="noise",
+            suspect_drug="Unknown",
+            severity_assessment="mild",
+            recommended_action="dismiss",
+            reasoning="Probably unrelated.",
+            confidence=95,
+        )
+    )
+    assert reward.total < 0.0
+
+
 def test_overconfidence_penalty_applies_on_weak_single_step_grading():
     reward = cluster_signal_medium_action_grader(
         Action(
@@ -278,6 +311,16 @@ def test_public_graders_are_strictly_bounded():
     assert known_signal_easy_grader({"rewards": [1.0]}) == 0.99
     assert cluster_signal_medium_grader({"rewards": [0.0]}) == 0.01
     assert confounded_hard_grader({"score": 1.5}) == 0.99
+
+
+def test_inference_final_score_uses_public_task_grader():
+    pytest.importorskip("openenv")
+    from inference import final_score
+
+    rewards = [0.4, 1.0]
+    assert final_score("known_signal_easy", rewards) == known_signal_easy_grader({"rewards": rewards})
+    assert final_score("cluster_signal_medium", rewards) == cluster_signal_medium_grader({"rewards": rewards})
+    assert final_score("confounded_hard", rewards) == confounded_hard_grader({"rewards": rewards})
 
 
 def test_http_reset_then_step_roundtrip():

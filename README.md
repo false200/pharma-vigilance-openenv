@@ -34,7 +34,8 @@ Pharmacovigilance teams are responsible for detecting harmful safety patterns af
 | Episode length | 2-step triage and review workflow |
 | Task count | 3 |
 | Difficulties | Easy, Medium, Hard |
-| Reward range | `0.0` to `1.0` |
+| Step reward range | `-0.25` to `1.0` |
+| Final grader range | strict `(0, 1)` |
 | API | `reset()`, `step()`, `state()` |
 | Server | FastAPI |
 
@@ -113,7 +114,8 @@ triage story.
 | Hard-task reasoning bonus if explanation mentions `drug interaction`, `tacrolimus`, `voriconazole`, `azole`, `calcineurin`, or `level monitoring` | `+0.05` |
 
 Notes:
-- Final reward is clamped to `[0.0, 1.0]`.
+- Step-level rewards may be slightly negative for clearly unsafe or suboptimal actions.
+- Final grader outputs remain deterministic and strictly bounded inside `(0, 1)` for evaluation safety.
 - `suspect_drug` matching is forgiving for the hard task and allows substring matches.
 - The environment is deterministic and reproducible because all tasks and grading logic are hardcoded.
 - Confidence is optional, but calibrated confidence can improve reward while reckless overconfidence is penalized.

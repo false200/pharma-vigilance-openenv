@@ -54,5 +54,5 @@ class PharmaAction(Action):
 
 
 class PharmaReward(BaseModel):
-    total: float = Field(..., description="Total reward in the 0.0-1.0 range")
+    total: float = Field(..., description="Step reward total, which may be slightly negative for penalties")
     breakdown: dict = Field(default_factory=dict, description="Per-component reward breakdown")

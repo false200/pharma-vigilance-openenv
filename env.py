@@ -37,7 +37,7 @@ class Action(BaseModel):
 
 
 class Reward(BaseModel):
-    total: float = Field(..., ge=0.0, le=1.0)
+    total: float = Field(..., ge=-1.0, le=1.0)
     breakdown: dict
 
 
@@ -71,7 +71,7 @@ class PharmaVigilanceEnv:
 
     @staticmethod
     def _clamp_reward(total: float, breakdown: dict) -> Reward:
-        return Reward(total=max(0.0, min(1.0, round(total, 4))), breakdown=breakdown)
+        return Reward(total=max(-0.25, min(1.0, round(total, 4))), breakdown=breakdown)
 
     def _initial_triage_reward(self, action: Action) -> Reward:
         truth = self.current_task.ground_truth

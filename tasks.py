@@ -106,7 +106,7 @@ def _reward_from_breakdown(breakdown: dict):
         from env import Reward
 
     total = round(sum(breakdown.values()), 4)
-    return Reward(total=max(0.0, min(1.0, total)), breakdown=breakdown)
+    return Reward(total=max(-0.25, min(1.0, total)), breakdown=breakdown)
 
 
 def known_signal_easy_action_grader(action: Any):

@@ -9,15 +9,16 @@ by the evaluator.
 import argparse
 import json
 import os
-from typing import Iterable, List
+from typing import Any, Iterable, List
 
 import requests
-from openai import OpenAI
 from pydantic import ValidationError
 
 try:
+    from .graders import TASK_TO_GRADER
     from .models import PharmaAction
 except ImportError:
+    from graders import TASK_TO_GRADER
     from models import PharmaAction
 
 
@@ -85,9 +86,11 @@ def choose_tasks(selection: str) -> Iterable[str]:
     return TASK_SETS[selection]
 
 
-def client() -> OpenAI:
+def client() -> Any:
     if not HF_TOKEN:
         raise EnvironmentError("HF_TOKEN or API_KEY must be set before running inference.py")
+    from openai import OpenAI
+
     return OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
 
 
@@ -121,7 +124,7 @@ def prompt_for_case(observation: dict) -> str:
     )
 
 
-def ask_model(llm: OpenAI, observation: dict) -> PharmaAction:
+def ask_model(llm: Any, observation: dict) -> PharmaAction:
     completion = llm.chat.completions.create(
         model=MODEL_NAME,
         messages=[
@@ -144,12 +147,15 @@ def compact_action(action: PharmaAction) -> str:
     return label
 
 
-def final_score(rewards: List[float]) -> float:
-    score = sum(rewards) / len(rewards) if rewards else 0.0
-    return min(max(round(score, 4), 0.01), 0.99)
+def final_score(task_name: str, rewards: List[float]) -> float:
+    grader = TASK_TO_GRADER.get(task_name)
+    if grader is None:
+        score = sum(rewards) / len(rewards) if rewards else 0.0
+        return min(max(round(score, 4), 0.01), 0.99)
+    return float(grader({"rewards": rewards}))
 
 
-def run_one_task(llm: OpenAI, task_name: str) -> None:
+def run_one_task(llm: Any, task_name: str) -> None:
     rewards: List[float] = []
     steps_taken = 0
     score = 0.0
@@ -179,7 +185,7 @@ def run_one_task(llm: OpenAI, task_name: str) -> None:
             steps_taken += 1
             emit_step(steps_taken, action_text, reward, done, None)
 
-        score = final_score(rewards)
+        score = final_score(task_name, rewards)
         success = score >= 0.60
 
     except json.JSONDecodeError:
