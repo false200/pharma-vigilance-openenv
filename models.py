@@ -31,7 +31,7 @@ class PharmaObservation(Observation):
     reports: List[AdverseEventReport] = Field(default_factory=list, description="Synthetic adverse event reports")
     drug_interaction_db: dict = Field(default_factory=dict, description="Hardcoded interaction and safety lookup")
     step_number: int = Field(default=0, description="Current step number")
-    max_steps: int = Field(default=1, description="Maximum number of steps in the episode")
+    max_steps: int = Field(default=2, description="Maximum number of steps in the episode")
     feedback: Optional[str] = Field(default=None, description="Feedback after the previous action")
 
     reward: float = Field(default=0.0, description="Reward from the last action")
