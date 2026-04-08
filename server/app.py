@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from openenv.core.env_server import create_web_interface_app
 
-from env import PharmaVigilanceEnv
-from models import PharmaAction, PharmaObservation
+try:
+    from ..env import PharmaVigilanceEnv
+    from ..models import PharmaAction, PharmaObservation
+except ImportError:
+    from env import PharmaVigilanceEnv
+    from models import PharmaAction, PharmaObservation
 
 
 TASK_IDS = ["known_signal_easy", "cluster_signal_medium", "confounded_hard"]
