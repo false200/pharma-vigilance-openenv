@@ -41,8 +41,10 @@ def _base_breakdown(action: Any, ground_truth: GroundTruth) -> dict:
     breakdown = {
         "classification": 0.25 if action.classification == ground_truth.classification else 0.0,
         "suspect_drug": 0.25 if suspect_match else 0.0,
-        "severity_assessment": 0.25 if action.severity_assessment == ground_truth.severity_assessment else 0.0,
-        "recommended_action": 0.25 if action.recommended_action == ground_truth.recommended_action else 0.0,
+        "severity_assessment": 0.20 if action.severity_assessment == ground_truth.severity_assessment else 0.0,
+        "recommended_action": 0.15 if action.recommended_action == ground_truth.recommended_action else 0.0,
+        "consistency_bonus": 0.0,
+        "confidence_adjustment": 0.0,
         "false_alarm_penalty": 0.0,
         "missed_signal_penalty": 0.0,
         "reasoning_bonus": 0.0,
@@ -54,6 +56,47 @@ def _base_breakdown(action: Any, ground_truth: GroundTruth) -> dict:
         breakdown["missed_signal_penalty"] = -0.20
 
     return breakdown
+
+
+def _is_consistent_pipeline(action: Any, ground_truth: GroundTruth, report_count: int) -> bool:
+    classification = action.classification
+    severity = action.severity_assessment
+    recommendation = action.recommended_action
+    suspect_drug = action.suspect_drug.strip()
+
+    if classification == "known_side_effect":
+        return bool(suspect_drug) and recommendation in {"log_and_monitor", "request_more_info"} and severity in {
+            "mild",
+            "moderate",
+            "severe",
+        }
+
+    if classification == "new_signal":
+        return bool(suspect_drug) and recommendation == "escalate" and (
+            severity in {"severe", "critical"} or report_count > 1
+        )
+
+    if classification == "noise":
+        return recommendation in {"dismiss", "request_more_info"} and severity in {"mild", "moderate"}
+
+    if classification == "duplicate":
+        return recommendation in {"dismiss", "log_and_monitor"}
+
+    return False
+
+
+def _confidence_adjustment(action: Any, correctness_score: float) -> float:
+    confidence = getattr(action, "confidence", None)
+    if confidence is None:
+        return 0.0
+
+    if confidence >= 80 and correctness_score >= 0.75:
+        return 0.05
+    if confidence >= 80 and correctness_score < 0.40:
+        return -0.10
+    if confidence <= 40 and correctness_score >= 0.75:
+        return -0.03
+    return 0.0
 
 
 def _reward_from_breakdown(breakdown: dict):
@@ -69,24 +112,51 @@ def _reward_from_breakdown(breakdown: dict):
 def known_signal_easy_action_grader(action: Any):
     truth = GroundTruth(**TASK_DATA["known_signal_easy"]["ground_truth"])
     breakdown = _base_breakdown(action, truth)
+    correctness_score = (
+        breakdown["classification"]
+        + breakdown["suspect_drug"]
+        + breakdown["severity_assessment"]
+        + breakdown["recommended_action"]
+    )
+    if _is_consistent_pipeline(action, truth, len(TASK_DATA["known_signal_easy"]["reports"])):
+        breakdown["consistency_bonus"] = 0.10
+    breakdown["confidence_adjustment"] = _confidence_adjustment(action, correctness_score)
     return _reward_from_breakdown(breakdown)
 
 
 def cluster_signal_medium_action_grader(action: Any):
     truth = GroundTruth(**TASK_DATA["cluster_signal_medium"]["ground_truth"])
     breakdown = _base_breakdown(action, truth)
+    correctness_score = (
+        breakdown["classification"]
+        + breakdown["suspect_drug"]
+        + breakdown["severity_assessment"]
+        + breakdown["recommended_action"]
+    )
+    if _is_consistent_pipeline(action, truth, len(TASK_DATA["cluster_signal_medium"]["reports"])):
+        breakdown["consistency_bonus"] = 0.10
+    breakdown["confidence_adjustment"] = _confidence_adjustment(action, correctness_score)
     return _reward_from_breakdown(breakdown)
 
 
 def confounded_hard_action_grader(action: Any):
     truth = GroundTruth(**TASK_DATA["confounded_hard"]["ground_truth"])
     breakdown = _base_breakdown(action, truth)
+    correctness_score = (
+        breakdown["classification"]
+        + breakdown["suspect_drug"]
+        + breakdown["severity_assessment"]
+        + breakdown["recommended_action"]
+    )
+    if _is_consistent_pipeline(action, truth, len(TASK_DATA["confounded_hard"]["reports"])):
+        breakdown["consistency_bonus"] = 0.10
+    breakdown["confidence_adjustment"] = _confidence_adjustment(action, correctness_score)
     reasoning = action.reasoning.lower()
     if any(
         term in reasoning
         for term in ("drug interaction", "tacrolimus", "voriconazole", "azole", "calcineurin", "level monitoring")
     ):
-        breakdown["reasoning_bonus"] = 0.15
+        breakdown["reasoning_bonus"] = 0.05
     return _reward_from_breakdown(breakdown)
 
 

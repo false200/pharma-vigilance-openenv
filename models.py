@@ -45,6 +45,12 @@ class PharmaAction(Action):
     severity_assessment: str = Field(..., description="mild | moderate | severe | critical")
     recommended_action: str = Field(..., description="escalate | log_and_monitor | dismiss | request_more_info")
     reasoning: str = Field(default="", description="Short explanation of the decision")
+    confidence: Optional[int] = Field(
+        default=None,
+        ge=0,
+        le=100,
+        description="Optional analyst confidence score from 0 to 100 for calibration-aware reward shaping",
+    )
 
 
 class PharmaReward(BaseModel):

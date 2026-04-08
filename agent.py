@@ -84,6 +84,7 @@ Return fields:
 - severity_assessment: one of mild, moderate, severe, critical
 - recommended_action: one of escalate, log_and_monitor, dismiss, request_more_info
 - reasoning: concise mechanistic explanation
+- confidence: integer from 0 to 100 indicating how confident you are
 
 Decision principles:
 - Repeated known labeled reactions should usually be known_side_effect
@@ -128,6 +129,7 @@ Case:
                 severity_assessment="mild",
                 recommended_action="log_and_monitor",
                 reasoning="Persistent dry cough is a classic labeled ACE inhibitor effect.",
+                confidence=92,
             )
 
         if report_count >= 3 and ("brady" in reaction_blob or "syncope" in reaction_blob):
@@ -137,6 +139,7 @@ Case:
                 severity_assessment="severe",
                 recommended_action="escalate",
                 reasoning="A coherent cluster of bradycardia reports on a recently launched drug warrants escalation.",
+                confidence=88,
             )
 
         if "tacrolimus" in db_blob and "voriconazole" in db_blob:
@@ -146,6 +149,7 @@ Case:
                 severity_assessment="critical",
                 recommended_action="escalate",
                 reasoning="This looks like a tacrolimus exposure interaction requiring urgent escalation and level review.",
+                confidence=84,
             )
 
         fallback_severity = report.severity if report.severity in {"mild", "moderate", "severe", "critical"} else "moderate"
@@ -155,6 +159,7 @@ Case:
             severity_assessment=fallback_severity,
             recommended_action="request_more_info",
             reasoning="The case is ambiguous, so additional information is needed before final triage.",
+            confidence=45,
         )
 
     def act(self, observation) -> Action:

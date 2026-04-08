@@ -75,6 +75,7 @@ class PharmaVigilanceEnvClient(
             "severity_assessment": action.severity_assessment,
             "recommended_action": action.recommended_action,
             "reasoning": action.reasoning,
+            "confidence": action.confidence,
         }
 
     def _parse_result(self, payload: Dict) -> StepResult[Observation]:

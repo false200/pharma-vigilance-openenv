@@ -31,14 +31,14 @@ Pharmacovigilance teams are responsible for detecting harmful safety patterns af
 |---|---|
 | Environment name | `pharma-vigilance` |
 | Domain | Pharmacovigilance / drug safety triage |
-| Episode length | 1 step per task |
+| Episode length | 2-step triage and review workflow |
 | Task count | 3 |
 | Difficulties | Easy, Medium, Hard |
 | Reward range | `0.0` to `1.0` |
 | API | `reset()`, `step()`, `state()` |
 | Server | FastAPI |
 
-The agent receives one final-decision task per episode. Each task includes one or more synthetic reports plus a hardcoded drug interaction database. The environment never exposes ground truth to the agent.
+Each episode has two phases. On step 1 the agent performs an initial triage. The environment then returns additional senior-review context through feedback, and on step 2 the agent submits a final reviewed assessment. Each task includes one or more synthetic reports plus a hardcoded drug interaction database. The environment never exposes ground truth to the agent.
 
 ## Action Space
 
@@ -49,6 +49,7 @@ The agent receives one final-decision task per episode. Each task includes one o
 | `severity_assessment` | `str` | `mild`, `moderate`, `severe`, `critical` | Clinical severity assessment |
 | `recommended_action` | `str` | `escalate`, `log_and_monitor`, `dismiss`, `request_more_info` | Operational follow-up |
 | `reasoning` | `str` | Free text | Short explanation used for grading bonus on hard task |
+| `confidence` | `Optional[int]` | `0` to `100` | Optional analyst confidence used for calibration-aware reward shaping |
 
 ## Observation Space
 
@@ -59,7 +60,7 @@ The agent receives one final-decision task per episode. Each task includes one o
 | `drug_interaction_db` | `dict` | Hardcoded safety and interaction hints |
 | `step_number` | `int` | Current step index |
 | `max_steps` | `int` | Maximum number of steps in the episode |
-| `feedback` | `Optional[str]` | Feedback message after the previous action |
+| `feedback` | `Optional[str]` | Feedback or senior-review note returned after the previous action |
 
 Each `AdverseEventReport` contains:
 
@@ -88,22 +89,36 @@ The hard task is intentionally more difficult because the named suspect drug is 
 
 ## Reward Function
 
-The environment uses deterministic programmatic graders.
+The environment uses deterministic programmatic graders. Reward is now shaped across a true two-step trajectory:
+
+1. initial triage reward on step 1
+2. final review reward on step 2 after additional context arrives
+
+Within each step, the agent is also scored on classification, causal attribution, severity,
+and action, then receives extra credit if those sub-decisions form a coherent
+triage story.
 
 | Reward component | Value |
 |---|---|
 | Correct `classification` | `+0.25` |
 | Correct `suspect_drug` | `+0.25` |
-| Correct `severity_assessment` | `+0.25` |
-| Correct `recommended_action` | `+0.25` |
+| Correct `severity_assessment` | `+0.20` |
+| Correct `recommended_action` | `+0.15` |
+| Consistency bonus when classification, severity, and action form a coherent pharmacovigilance pipeline | `+0.10` |
+| Calibration bonus for high-confidence correct answers | `+0.05` |
+| Overconfidence penalty for high-confidence weak answers | `-0.10` |
+| Underconfidence penalty for low-confidence strong answers | `-0.03` |
 | False alarm penalty: agent says `new_signal` when truth is `noise` | `-0.10` |
 | Missed signal penalty: agent says `noise` when truth is `new_signal` | `-0.20` |
-| Hard-task reasoning bonus if explanation mentions `drug interaction`, `tacrolimus`, `voriconazole`, `azole`, `calcineurin`, or `level monitoring` | `+0.15` |
+| Hard-task reasoning bonus if explanation mentions `drug interaction`, `tacrolimus`, `voriconazole`, `azole`, `calcineurin`, or `level monitoring` | `+0.05` |
 
 Notes:
 - Final reward is clamped to `[0.0, 1.0]`.
 - `suspect_drug` matching is forgiving for the hard task and allows substring matches.
 - The environment is deterministic and reproducible because all tasks and grading logic are hardcoded.
+- Confidence is optional, but calibrated confidence can improve reward while reckless overconfidence is penalized.
+- Step 1 gives partial reward for initial triage and returns new review context; step 2 gives the final adjudicated reward.
+- The environment also rewards productive revision and penalizes stubbornly repeating a weak initial answer or making an unjustified late flip.
 
 ## Project Structure
 
@@ -167,7 +182,7 @@ http://localhost:7860/health
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/reset` | Starts a task and returns the initial observation |
-| `POST` | `/step` | Submits the final agent action and returns observation, reward, done, info |
+| `POST` | `/step` | Submits the current agent action and returns observation, reward, done, info |
 | `GET` | `/state` | Returns internal environment state summary |
 | `GET` | `/tasks` | Lists available task ids |
 | `GET` | `/health` | Health check endpoint |
@@ -180,6 +195,7 @@ It:
 - reads `API_BASE_URL`, `MODEL_NAME`, `HF_TOKEN`, and optional `ENV_URL`
 - uses the OpenAI client for all model calls
 - runs all three tasks sequentially
+- follows the full 2-step episode loop until `done=true`
 - emits the required `[START]`, `[STEP]`, and `[END]` lines
 - keeps stdout restricted to the judge-expected line types
 

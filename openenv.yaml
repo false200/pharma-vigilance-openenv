@@ -41,6 +41,10 @@ action_space:
     - name: reasoning
       type: string
       description: "Brief free-text rationale used for partial credit on the hard task"
+    - name: confidence
+      type: integer
+      required: false
+      description: "Optional analyst confidence from 0 to 100 used for calibration-aware reward shaping"
 
 observation_space:
   type: structured
@@ -69,20 +73,24 @@ reward:
   min: 0.0
   max: 1.0
   description: >
-    Reward is built from four 0.25 components for classification correctness,
-    causal suspect selection, severity assessment, and recommended operational
-    action. A false alarm penalty of -0.10 applies when the agent escalates a
-    case that is truly noise, and a larger missed-signal penalty of -0.20
-    applies when the agent dismisses a true new signal. The hard task can earn
-    an additional +0.15 reasoning bonus when the explanation explicitly
-    references the interaction mechanism or therapeutic drug monitoring clues.
+    Reward is computed over a staged pharmacovigilance decision pipeline:
+    classification, causal suspect selection, severity assessment, and
+    operational action. The environment then adds a consistency bonus when the
+    full chain of sub-decisions is internally coherent, and applies a
+    calibration-aware confidence adjustment for well-calibrated or dangerously
+    overconfident answers. A false alarm penalty of -0.10 applies when the
+    agent escalates a case that is truly noise, and a larger missed-signal
+    penalty of -0.20 applies when the agent dismisses a true new signal. The
+    hard task can earn an additional +0.05 reasoning bonus when the
+    explanation explicitly references the interaction mechanism or therapeutic
+    drug monitoring clues.
 
 difficulties:
   - easy
   - medium
   - hard
 
-max_steps: 1
+max_steps: 2
 
 tasks:
   - id: known_signal_easy

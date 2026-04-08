@@ -45,11 +45,13 @@ Allowed keys:
 - severity_assessment
 - recommended_action
 - reasoning
+- confidence
 
 Allowed values:
 - classification: new_signal, known_side_effect, noise, duplicate
 - severity_assessment: mild, moderate, severe, critical
 - recommended_action: escalate, log_and_monitor, dismiss, request_more_info
+- confidence: integer from 0 to 100
 
 No markdown. No explanation outside the JSON object.
 """.strip()
@@ -156,25 +158,29 @@ def run_one_task(llm: OpenAI, task_name: str) -> None:
     emit_start(task_name)
 
     try:
-        observation = fetch_reset(task_name)
-        action = ask_model(llm, observation)
-        action_text = compact_action(action)
-
-        result = submit_action(action)
-        reward_payload = result.get("reward", {})
-        reward = (
-            float(reward_payload.get("total", 0.0))
-            if isinstance(reward_payload, dict)
-            else float(reward_payload)
-        )
+        result = fetch_reset(task_name)
         done = bool(result.get("done", False))
 
-        rewards.append(reward)
-        steps_taken = 1
-        emit_step(1, action_text, reward, done, None)
+        while not done:
+            observation = result
+            action = ask_model(llm, observation)
+            action_text = compact_action(action)
+
+            result = submit_action(action)
+            reward_payload = result.get("reward", {})
+            reward = (
+                float(reward_payload.get("total", 0.0))
+                if isinstance(reward_payload, dict)
+                else float(reward_payload)
+            )
+            done = bool(result.get("done", False))
+
+            rewards.append(reward)
+            steps_taken += 1
+            emit_step(steps_taken, action_text, reward, done, None)
 
         score = final_score(rewards)
-        success = score >= 0.75
+        success = score >= 0.60
 
     except json.JSONDecodeError:
         rewards = [0.0]
