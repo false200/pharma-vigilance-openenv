@@ -1,0 +1,30 @@
+spec_version: 1
+name: pharma-vigilance
+display_name: "Pharmacovigilance Signal Detector"
+description: >
+  Pharmacovigilance signal detection environment. Agent reads drug adverse
+  event reports and classifies them as new safety signals, known side effects,
+  or noise - simulating the work of FDA pharmacovigilance analysts.
+type: space
+runtime: fastapi
+app: server.app:app
+port: 7860
+tags: [openenv, healthcare, pharmacovigilance, safety, real-world]
+
+tasks:
+  - id: known_signal_easy
+    difficulty: easy
+    max_steps: 1
+    grader: tasks.known_signal_easy_grader
+  - id: cluster_signal_medium
+    difficulty: medium
+    max_steps: 1
+    grader: tasks.cluster_signal_medium_grader
+  - id: confounded_hard
+    difficulty: hard
+    max_steps: 1
+    grader: tasks.confounded_hard_grader
+
+observation_space: AdverseEventReport list + drug interaction DB
+action_space: classification + suspect_drug + severity + recommended_action + reasoning
+reward_range: [0.0, 1.0]
