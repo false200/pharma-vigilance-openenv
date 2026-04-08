@@ -102,7 +102,7 @@ def fetch_reset(task_name: str) -> dict:
 def submit_action(action: PharmaAction) -> dict:
     response = requests.post(
         f"{ENV_URL}/step",
-        json=action.model_dump(),
+        json={"action": action.model_dump()},
         timeout=30,
     )
     response.raise_for_status()

@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
 
+import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from env import Action, PharmaVigilanceEnv
@@ -130,3 +131,31 @@ def test_public_graders_are_strictly_bounded():
     assert known_signal_easy_grader({"rewards": [1.0]}) == 0.99
     assert cluster_signal_medium_grader({"rewards": [0.0]}) == 0.01
     assert confounded_hard_grader({"score": 1.5}) == 0.99
+
+
+def test_http_reset_then_step_roundtrip():
+    pytest.importorskip("openenv")
+    from fastapi.testclient import TestClient
+    from server.app import app
+
+    client = TestClient(app)
+
+    reset_response = client.post("/reset", json={})
+    assert reset_response.status_code == 200
+
+    step_response = client.post(
+        "/step",
+        json={
+            "action": {
+                "classification": "known_side_effect",
+                "suspect_drug": "Lisinopril",
+                "severity_assessment": "mild",
+                "recommended_action": "log_and_monitor",
+                "reasoning": "Known ACE inhibitor cough.",
+            }
+        },
+    )
+    assert step_response.status_code == 200
+    payload = step_response.json()
+    assert payload["done"] is True
+    assert payload["reward"] == 1.0

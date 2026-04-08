@@ -19,9 +19,12 @@ class OpenEnvPharmaAdapter:
     expected by OpenEnv's HTTP server and web playground helpers.
     """
 
+    _shared_env = PharmaVigilanceEnv()
+    _shared_state = State(episode_id=None, step_count=0)
+
     def __init__(self) -> None:
-        self._env = PharmaVigilanceEnv()
-        self._last_state = State(episode_id=None, step_count=0)
+        self._env = self.__class__._shared_env
+        self._last_state = self.__class__._shared_state
 
     @staticmethod
     def _normalize_reports(reports):
@@ -36,6 +39,7 @@ class OpenEnvPharmaAdapter:
     def reset(self, task_id: str = "known_signal_easy") -> PharmaObservation:
         observation = self._env.reset(task_id=task_id)
         self._last_state = State(episode_id=task_id, step_count=0)
+        self.__class__._shared_state = self._last_state
         return PharmaObservation(
             task_id=observation.task_id,
             reports=self._normalize_reports(observation.reports),
@@ -57,6 +61,7 @@ class OpenEnvPharmaAdapter:
             episode_id=observation.task_id,
             step_count=observation.step_number,
         )
+        self.__class__._shared_state = self._last_state
         return PharmaObservation(
             task_id=observation.task_id,
             reports=self._normalize_reports(observation.reports),
