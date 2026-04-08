@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from openenv.core.env_server import create_web_interface_app
+from openenv.core.env_server.types import State
 
 try:
     from ..env import PharmaVigilanceEnv
@@ -20,20 +21,24 @@ class OpenEnvPharmaAdapter:
 
     def __init__(self) -> None:
         self._env = PharmaVigilanceEnv()
-        self._last_state: dict = {
-            "episode_id": None,
-            "step_count": 0,
-        }
+        self._last_state = State(episode_id=None, step_count=0)
+
+    @staticmethod
+    def _normalize_reports(reports):
+        normalized = []
+        for report in reports:
+            if hasattr(report, "model_dump"):
+                normalized.append(report.model_dump())
+            else:
+                normalized.append(report)
+        return normalized
 
     def reset(self, task_id: str = "known_signal_easy") -> PharmaObservation:
         observation = self._env.reset(task_id=task_id)
-        self._last_state = {
-            "episode_id": task_id,
-            "step_count": 0,
-        }
+        self._last_state = State(episode_id=task_id, step_count=0)
         return PharmaObservation(
             task_id=observation.task_id,
-            reports=observation.reports,
+            reports=self._normalize_reports(observation.reports),
             drug_interaction_db=observation.drug_interaction_db,
             step_number=observation.step_number,
             max_steps=observation.max_steps,
@@ -43,15 +48,18 @@ class OpenEnvPharmaAdapter:
             metadata={"difficulty": self._env.current_task.difficulty if self._env.current_task else None},
         )
 
+    async def reset_async(self, task_id: str = "known_signal_easy") -> PharmaObservation:
+        return self.reset(task_id=task_id)
+
     def step(self, action: PharmaAction) -> PharmaObservation:
         observation, reward, done, info = self._env.step(action)
-        self._last_state = {
-            "episode_id": observation.task_id,
-            "step_count": observation.step_number,
-        }
+        self._last_state = State(
+            episode_id=observation.task_id,
+            step_count=observation.step_number,
+        )
         return PharmaObservation(
             task_id=observation.task_id,
-            reports=observation.reports,
+            reports=self._normalize_reports(observation.reports),
             drug_interaction_db=observation.drug_interaction_db,
             step_number=observation.step_number,
             max_steps=observation.max_steps,
@@ -61,8 +69,11 @@ class OpenEnvPharmaAdapter:
             metadata=info,
         )
 
+    async def step_async(self, action: PharmaAction) -> PharmaObservation:
+        return self.step(action)
+
     @property
-    def state(self) -> dict:
+    def state(self) -> State:
         return self._last_state
 
     def close(self) -> None:
