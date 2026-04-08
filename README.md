@@ -1,6 +1,5 @@
 ---
 title: Pharmacovigilance Signal Detector
-emoji: "??"
 colorFrom: blue
 colorTo: green
 sdk: docker
