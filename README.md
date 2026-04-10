@@ -1,4 +1,3 @@
-
 ---
 title: Pharmacovigilance Signal Detector
 colorFrom: blue
